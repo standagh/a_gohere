@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# 20140904	pridani config promenne A_SHOWCOMMENTS. Pokud "1" = default - pak zobrazuje komplet datafile; ; - komentar nezobrazi nikdy
+# 20140715	cd $NP upraveno na cd "$NP"
+# 20140301	umoznuje za abbreviatioin pridat dalsi cast cesty: a d/bin
+# 20131202	oprava cesty, u ktere kolidovala zkratka se zkratkou v konfiguraku uvedenou vys
+# 20130502	korektne zpracovava shell '-<shell>' - to ma $0 po 'su - user'
+# 20130502	odebran parametr "xl" jako list
+# 201304	init verze
+
+#Priklad config filu:
+#id:/path1/path
+#id2:/path2/dir
+#
+#Podminka pro id: id =~ "[a-zA-Z0-9_-]+"
+
+#alias a='. /usr/local/bin/a'
+
+
+set -o pipefail
+
+
+A_SHOWCOMMENTS="1"
+[ -z "$A_SHOWCOMMENTS" ] && A_SHOWCOMMENTS="0"
+SCRIPTNAME="a"
+
+CURFULLNAME=`echo "$0" | sed 's/^-*\(.*\)$/\1/'`
+CURNAME=`basename $CURFULLNAME`
+if [ "$CURNAME" = "$SCRIPTNAME" ]; then
+	echo "Script must be run as: . $SCRIPTNAME <params>"
+	echo "... or better set alias in yout environment: alias $SCRIPTNAME='. $SCRIPTNAME'"
+	exit 10
+fi
+
+USCRIPTNAME=`echo $SCRIPTNAME | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ`
+
+unset CONFIGF
+eval "CONFIGF=\$${USCRIPTNAME}_CONFIG"
+[ -z "$CONFIGF" ] && CONFIGF="$HOME/.${SCRIPTNAME}.config"
+
+if [ ! -r "$CONFIGF" ]; then
+	touch $CONFIGF || { echo "Unable to prepare config file '$CONFIGF'."; return 10; }
+fi
+
+function showHelp() {
+	echo "Usage: $SCRIPTNAME <parameter>"
+	echo "Parameters:"
+	echo "    xa <id> ... add current path to config file '$CONFIGF'. Id must contain only RE: [a-zA-Z0-9_-]+"
+	echo "    xe ... edit config file '$CONFIGF' using editor '$EDITOR'"
+	echo "To use different config file set env variable '"${USCRIPTNAME}_CONFIG"' to desired config file."
+	echo 
+}
+
+function addPath() {
+	[ -z "$1" ] && { showHelp; return 10; }
+	
+	if [[ ! "$1" =~ ^[a-zA-Z0-9_-]*$ ]]; then 
+		showHelp; 
+		return 10;
+	else
+		echo "$1:`pwd`" >> $CONFIGF || { echo "Failed. Unable to add current path '`pwd`' to config file '$CONFIGF'."; return 10; }
+		echo "Success." #"Current path '`pwd`' was added to config file '$CONFIGF' with id '$1'."
+	fi
+	return 0
+}
+
+function editPaths() {
+	[ -z "$EDITOR" ] && vi $CONFIGF
+	[ -n "$EDITOR" ] && $EDITOR $CONFIGF
+}
+
+function listPaths() {
+	if [ `cat $CONFIGF | grep -v "^#" | grep -E "^[a-zA-Z0-9_-]+:" | wc -l` -gt 0 ]; then
+		echo "Available paths:"
+		if [ "$A_SHOWCOMMENTS" = "1" ]; then
+    		cat $CONFIGF | grep -v "^;" | sed "s/:/ = /" | grep -v "^$"
+		else
+    		cat $CONFIGF | grep -E "^[a-zA-Z0-9_-]+:" | sed "s/:/ = /" | grep -v "^$"
+		fi
+	else
+		echo "No paths set in config file '$CONFIGF'."
+	fi
+}
+
+
+function main() {
+	[ -z "$1" ] && { showHelp; listPaths; return $?; }
+	
+	
+	[ "$1" = "xa" ] && { addPath "$2"; return $?; }
+	[ "$1" = "xe" ] && { editPaths; return $?; }
+	
+	PATHPART=`echo "$1" | sed "s/^\([^/]*\).*$/\1/"` || { echo "Error while retreiving base path abbreviation."; return 10; }
+	PATHREST=`echo "$1" | sed "s/^\([^/]*\)\(.*\)$/\2/"` || { echo "Error while retreiving rest of the path."; return 10; }
+	[ -z "$PATHPART" ] && { showHelp; return 10; }
+	
+	if [[ ! "$PATHPART" =~ ^[a-zA-Z0-9_-]*$ ]]; then 
+		showHelp; 
+		return 10;
+	else
+		local CFLINE=`cat $CONFIGF | grep -E "^$PATHPART:"`
+		if [ -n "$CFLINE" ]; then 
+			NP=`echo "$CFLINE" | sed "s/^$PATHPART://"`
+			[ -d "$NP" ] || { echo "Directory '$NP' doesn't exist."; return 10; }
+			if [ -z "$PATHREST" ]; then
+				cd "$NP" || { echo "Error while changing directory to '$NP'"; return 10; }
+			else
+				[ -d "${NP}${PATHREST}" ] || { echo "Directory '${NP}${PATHREST}' doesn't exist."; return 10; }
+				cd "${NP}${PATHREST}" || { echo "Error while changing directory to '${NP}${PATHREST}'"; return 10; }
+			fi
+			echo "Changed directory to: `pwd`"
+		else
+			echo "Id '$PATHPART' not found in config file '$CONFIGF'."
+			return 10
+		fi
+	fi
+	
+}
+
+main "$@"
+
+
