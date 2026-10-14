@@ -1,6 +1,6 @@
 _a_completion() {
     local cur prev opts
-    AC=/opt/a.config
+    AC=$A_CONFIG
     COMPREPLY=()
     #cur="${COMP_WORDS[COMP_CWORD]}"
     #prev="${COMP_WORDS[COMP_CWORD-1]}"
