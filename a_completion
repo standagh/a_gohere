@@ -1,0 +1,16 @@
+_a_completion() {
+    local cur prev opts
+    AC=/opt/a.config
+    COMPREPLY=()
+    #cur="${COMP_WORDS[COMP_CWORD]}"
+    #prev="${COMP_WORDS[COMP_CWORD-1]}"
+    #[ -z "$2" ] && COMPREPLY=( $(sort $AC | awk -F: '{print $1}' | tr \\n " ") )
+    #[ -n "$2" ] && COMPREPLY=( $(sort $AC | awk -F: '{print $1}' | grep ^"${2}" | tr \\n " ") )
+    [ -z "$2" ] && COMPREPLY=( $(sort $AC | tr \\n " ") )
+    [ -n "$2" ] && COMPREPLY=( $(sort $AC | grep ^"${2}" | tr \\n " ") )
+    #echo "${COMPREPLY[@]}"
+    return 0
+}
+
+complete -F _a_completion a
+# ln -s a_completion /opt/bash_completion.d/

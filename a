@@ -48,14 +48,14 @@ function showHelp() {
 	echo "    xa <id> ... add current path to config file '$CONFIGF'. Id must contain only RE: [a-zA-Z0-9_-]+"
 	echo "    xe ... edit config file '$CONFIGF' using editor '$EDITOR'"
 	echo "To use different config file set env variable '"${USCRIPTNAME}_CONFIG"' to desired config file."
-	echo 
+	echo
 }
 
 function addPath() {
 	[ -z "$1" ] && { showHelp; return 10; }
-	
-	if [[ ! "$1" =~ ^[a-zA-Z0-9_-]*$ ]]; then 
-		showHelp; 
+
+	if [[ ! "$1" =~ ^[a-zA-Z0-9_-]*$ ]]; then
+		showHelp;
 		return 10;
 	else
 		echo "$1:`pwd`" >> $CONFIGF || { echo "Failed. Unable to add current path '`pwd`' to config file '$CONFIGF'."; return 10; }
@@ -85,21 +85,22 @@ function listPaths() {
 
 function main() {
 	[ -z "$1" ] && { showHelp; listPaths; return $?; }
-	
-	
+
 	[ "$1" = "xa" ] && { addPath "$2"; return $?; }
 	[ "$1" = "xe" ] && { editPaths; return $?; }
-	
-	PATHPART=`echo "$1" | sed "s/^\([^/]*\).*$/\1/"` || { echo "Error while retreiving base path abbreviation."; return 10; }
-	PATHREST=`echo "$1" | sed "s/^\([^/]*\)\(.*\)$/\2/"` || { echo "Error while retreiving rest of the path."; return 10; }
+
+	PAR1=$(echo "$1" | cut -d: -f1)
+
+	PATHPART=`echo "$PAR1" | sed "s/^\([^/]*\).*$/\1/"` || { echo "Error while retreiving base path abbreviation."; return 10; }
+	PATHREST=`echo "$PAR1" | sed "s/^\([^/]*\)\(.*\)$/\2/"` || { echo "Error while retreiving rest of the path."; return 10; }
 	[ -z "$PATHPART" ] && { showHelp; return 10; }
-	
-	if [[ ! "$PATHPART" =~ ^[a-zA-Z0-9_-]*$ ]]; then 
-		showHelp; 
+
+	if [[ ! "$PATHPART" =~ ^[a-zA-Z0-9_-]*$ ]]; then
+		showHelp;
 		return 10;
 	else
 		local CFLINE=`cat $CONFIGF | grep -E "^$PATHPART:"`
-		if [ -n "$CFLINE" ]; then 
+		if [ -n "$CFLINE" ]; then
 			NP=`echo "$CFLINE" | sed "s/^$PATHPART://"`
 			[ -d "$NP" ] || { echo "Directory '$NP' doesn't exist."; return 10; }
 			if [ -z "$PATHREST" ]; then
@@ -114,9 +115,7 @@ function main() {
 			return 10
 		fi
 	fi
-	
+
 }
 
 main "$@"
-
-
